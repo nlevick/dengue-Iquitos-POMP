@@ -1,0 +1,144 @@
+double births_H, beta, lam_H;
+double mu_H, phi_H, sig_H, gamma;
+double probs_H[10];
+int human[10];
+
+double births_G, alpha, tau, lam_G;
+double sig_G, mu_J, mu_G;
+double sigGprob, gammaprob, muGprob;
+double probs_G[10];
+int vector[10];
+
+//------------------------------------------------------------------------------
+//                              NOISE for Beta
+//------------------------------------------------------------------------------
+
+double dW,i;
+dW = rgammawn(epsilon,dt);
+i = 365;
+
+//------------------------------------------------------------------------------
+//                            TRANSMISSION RATES
+//------------------------------------------------------------------------------
+
+beta = i*b0 * (b1 * cos((M_2PI)*(t + 365*b2)) + 1);       // t variable
+
+
+// background force infection per day -- control_GH
+lam_H = i*b0 * ((double) I_G/N_H); 
+lam_G = i*b0*I_H/N_H + beta*eta/N_H; 
+
+sig_H = i/4.;
+sig_G = i/9.;
+gamma = i/7.;
+tau = i/10.;
+
+//------------------------------------------------------------------------------
+//                            BIRTHS & DEATHS
+//------------------------------------------------------------------------------
+phi_H = i*5.0877e-5;
+births_H = rpois(N_H*phi_H*dt);
+births_G = rpois(N_G*i*4.6*.68*dt);
+
+mu_H = i*1.6411e-5;
+mu_J = i/45.;
+
+
+switch( (int) control) {
+case 0 :
+    mu_G = i/10.;
+    break;
+case 1 :
+    mu_G = i/(muG)*1;
+    break;
+case 2 :
+    mu_G = i/(muG)*1.9676;
+    break;
+case 3 :
+    mu_G = i/(muG)*0.91744;
+    break;
+case 4 :
+    mu_G = i/(muG)*3.2944;
+    break;
+case 5 :
+    mu_G = i/(muG)*3.7893;
+    break;
+}
+
+alpha = i*4.25335761680425e-07; // initial alpha for N_H = 800000
+
+
+//------------------------------------------------------------------------------
+//                                   HUMAN
+//------------------------------------------------------------------------------
+
+// probability of transition
+probs_H[0] = (1-exp(-lam_H*dt))*exp(-mu_H*dt);  // S -> E
+probs_H[1] = 1-exp(-mu_H*dt);                   // S -> X
+probs_H[2] = 1-probs_H[0]-probs_H[1];           // S -> S
+probs_H[3] = (1-exp(-sig_H*dt))*exp(-mu_H*dt);  // E -> I
+probs_H[4] = 1-exp(-mu_H*dt);                   // E -> X
+probs_H[5] = 1-probs_H[3]-probs_H[4];           // E -> E
+probs_H[6] = (1-exp(-gamma*dt))*exp(-mu_H*dt);  // I -> R
+probs_H[7] = 1-exp(-mu_H*dt);                   // I -> X
+probs_H[8] = 1-probs_H[6]-probs_H[7];           // I -> I
+probs_H[9] = 1-exp(-mu_H*dt);                   // R -> X
+
+// population calculations of transition
+rmultinom(S_H,&probs_H[0],3,&human[0]);
+rmultinom(E_H,&probs_H[3],3,&human[3]);
+rmultinom(I_H,&probs_H[6],3,&human[6]);
+human[9] = rbinom(R_H, probs_H[9]);
+
+S_H += births_H  - human[0] - human[1];
+E_H += human[0] - human[3] - human[4];
+I_H += human[3] - human[6] - human[7];
+R_H += human[6] - human[9];
+N_H = S_H + E_H + I_H + R_H;
+C += human[6];           // true incidence
+
+
+//------------------------------------------------------------------------------
+//                                  VECTOR
+//------------------------------------------------------------------------------
+
+// probability of transition
+probs_G[0] = (1-exp(-tau*dt))*exp(-(mu_J+alpha*J_G)*dt);  // J -> S
+probs_G[1] = 1-exp(-(mu_J+alpha*J_G)*dt);                 // J -> X
+probs_G[2] = 1-probs_G[0]-probs_G[1];                     // J -> J
+// probs_G[3] = (1-exp(-lam_G*dt))*exp(-mu_G*dt);            // S -> E
+probs_G[3] = (1-exp(-lam_G*dW))*exp(-mu_G*dt);            // S -> E
+probs_G[4] = 1-exp(-mu_G*dt);                             // S -> X
+probs_G[5] = 1-probs_G[3]-probs_G[4];                     // S -> S
+probs_G[6] = (1-exp(-sig_G*dt))*exp(-mu_G*dt);            // E -> I
+probs_G[7] = 1-exp(-mu_G*dt);                             // E -> X
+probs_G[8] = 1-probs_G[6]-probs_G[7];                     // E -> E
+probs_G[9] = 1-exp(-mu_G*dt);                             // E -> X
+
+// population calculations of transition
+rmultinom(J_G,&probs_G[0],3,&vector[0]);
+rmultinom(S_G,&probs_G[3],3,&vector[3]);
+rmultinom(E_G,&probs_G[6],3,&vector[6]);
+vector[9] = rbinom(I_G, probs_G[9]);
+
+
+J_G += births_G  - vector[0] - vector[1];
+S_G += vector[0] - vector[3] - vector[4];
+E_G += vector[3] - vector[6] - vector[7];
+I_G += vector[6] - vector[9];
+N_G = S_G + E_G + I_G;
+
+
+// Update Noise
+noise += (dW - dt)/epsilon;  // standardized i.i.d. white noise
+
+
+gammaprob = 1-exp(-gamma*dt);
+sigGprob = 1-exp(-sig_G*dt);
+muGprob = 1-exp(-mu_G*dt);
+
+// basic reproducitve ratios -- controlGH
+R_0=((N_G/N_H)*(i*b0*dt)*(i*b0*dt)*(sigGprob)*(1-muGprob)/(gammaprob*muGprob*(sigGprob*(1-muGprob)+muGprob))); 
+R_eff = S_H/N_H * R_0;
+
+//------------------------------------------------------------------------------
