@@ -17,7 +17,7 @@ The repository possess five models with the following `model_name`:
 5. **Control2b0** -- Control measures + altered probability of mosquito & human exposure + two average value transmission parameters.
 
 
-
+***
 Order of Execution
 ------------
 In each Models/`model_name` folder, there is are six files:
@@ -30,7 +30,7 @@ In each Models/`model_name` folder, there is are six files:
  - **`model_name`.rds** -- The resulting R data information from 2\_`model_name`_run.r
 
 The first two models should be modified to perform new MIF data rds files.
-
+***
 General Tips
 ------------
 Change the 15 in the `ddply` to alter the number of top particles selected on each profiled value. 
