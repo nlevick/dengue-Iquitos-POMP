@@ -2,6 +2,7 @@
 Model Code for "Mechanistic plug-and-play methods for understanding the impact of control and climate on seasonal dengue dynamics"
 ----------
 ### UNM Master's Thesis in Mathematics -- Nathan Levick ###
+### Advisor -- Dr. Helen Wearing ###
 
 ----------
 
